@@ -1,5 +1,19 @@
 import requests
 import json
+import pysnooper
+
+#追加
+# 加工した画像ファイルをbase64変換する-
+from io import BytesIO
+import base64
+from PIL import Image, ImageDraw, ImageFont
+
+
+def pil_to_base64(img):
+    buffer = BytesIO()
+    img.save(buffer, format="jpeg")
+    img_str = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return img_str
 
 
 class TwitterFrontendFlow:
@@ -730,3 +744,303 @@ class TwitterFrontendFlow:
         ).json()
         self.content = response
         return self
+
+
+    #追加--
+    
+    def get_dm_inbox(self):
+            response = self.session.get('https://twitter.com/i/api/1.1/dm/inbox_initial_state.json', headers=self.__get_headers_legacy(), timeout=30).json()
+            self.content = response
+            return self
+
+    def get_dm(self, max_id=''):
+
+        if max_id == '':
+            response = self.session.get('https://api.twitter.com/1.1/dm/user_inbox.json', headers=self.__get_headers_legacy(), timeout=30).json()
+
+        else:
+            data = {
+                'max_conv_count': '50',
+                'include_groups': 'true',
+                'max_id': max_id,
+                'cards_platform': 'Web-13',
+                'include_entities': '0',
+                'include_user_entities': '0',
+                'include_cards': '0',
+                'send_error_codes': '1',
+                'tweet_mode': 'extended',
+                'include_ext_alt_text': 'true',
+                'include_reply_count': 'true',
+            }
+            
+            response = self.session.get('https://api.twitter.com/1.1/dm/user_inbox.json', headers=self.__get_headers_legacy(), data=data, timeout=30).json()
+
+        self.content = response
+        return self
+
+    
+    def get_dm_more(self, max_id='999999999999999999999999'):
+        
+        data = {
+            'max_conv_count': '50',
+            'include_groups': 'true',
+            'max_id': max_id,
+            'cards_platform': 'Web-13',
+            'include_entities': '0',
+            'include_user_entities': '0',
+            'include_cards': '0',
+            'send_error_codes': '1',
+            'tweet_mode': 'extended',
+            'include_ext_alt_text': 'true',
+            'include_reply_count': 'true',
+        }
+        
+        response = self.session.get('https://api.twitter.com/1.1/dm/user_inbox.json', headers=self.__get_headers_legacy(), data=data, timeout=30).json()
+        self.content = response
+        return self
+
+    
+    def get_conversation(self, conversation_id=''):
+
+
+        url = 'https://api.twitter.com/1.1/dm/conversation/{}.json'.format(conversation_id)
+        # data = {
+        #     'ext': 'altText',
+        #     'count': '100',
+        #     'max_id': max_id,
+        #     'cards_platform': 'Web-13',
+        #     'include_entities': '1',
+        #     'include_user_entities': '1',
+        #     'include_cards': '1',
+        #     'send_error_codes': '1',
+        #     'tweet_mode': 'extended',
+        #     'include_ext_alt_text': 'true',
+        #     'include_reply_count': 'true',
+        # }
+        
+        response = self.session.get(url, headers=self.__get_headers_legacy(), timeout=30).json()
+        self.content = response
+        return self
+
+    def send_dm(self, text, screen_name=None, user_id=None):
+        if screen_name == None:
+            if user_id == None:
+                print("Neither 'screen_name' nor 'user_id' was entered.")
+            else:
+                data = {
+                    'recipient_ids': user_id,
+                    'text': text
+                }
+
+                response = self.session.post('https://twitter.com/i/api/1.1/dm/new.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+
+        else:
+            response = self.session.get('https://api.twitter.com/1.1/users/show.json?screen_name=' + screen_name, headers=self.__get_headers_legacy(),timeout=30).json()
+            data = {
+                'recipient_ids': response['id'],
+                'text': text
+            }
+
+            response = self.session.post('https://twitter.com/i/api/1.1/dm/new.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+
+        self.content = response
+        return self
+    
+
+    #アカウント設定用
+
+    def user_info(self, screen_name=None, user_id=None):
+        if screen_name == None:
+            if user_id == None:
+                print("Neither 'screen_name' nor 'user_id' was entered.")
+            else:
+                response = self.session.get('https://api.twitter.com/1.1/users/show.json?user_id=' + user_id, headers=self.__get_headers_legacy(),timeout=30).json()
+        else:
+            response = self.session.get('https://api.twitter.com/1.1/users/show.json?screen_name=' + screen_name, headers=self.__get_headers_legacy(),timeout=30).json()
+
+        self.content = response
+        return self
+
+    def verify_password(self, password):
+        data = {
+            'password': password
+        }
+        
+        response = self.session.post('https://twitter.com/i/api/1.1/account/verify_password.json', headers=self.__get_headers_legacy(), data=data)
+
+        return response.json() | response.cookies.get_dict()
+
+    def account_data(self, verify=None, password=""):
+        if verify == None:
+            data = {
+                'password': password
+            }
+
+            response = self.session.post('https://twitter.com/i/api/1.1/account/verify_password.json', headers=self.__get_headers_legacy(), data=data)
+            if "errors" in response.json():
+                print(response.json()["errors"][0]["message"])
+            elif response.json()["status"] == "ok":
+                # cookie = self.headers["cookie"] + '; _twitter_sess=' + response.cookies.get_dict()["_twitter_sess"]
+                # self.headers["cookie"] = cookie
+
+                response = self.session.get('https://twitter.com/i/api/1.1/account/personalization/p13n_data.json', headers=self.__get_headers_legacy(),timeout=30).json()
+
+        elif not verify == None:
+            # cookie = self.headers["cookie"] + '; _twitter_sess=' + verify
+            # self.headers["cookie"] = cookie
+
+            response = self.session.get('https://twitter.com/i/api/1.1/account/personalization/p13n_data.json', headers=self.__get_headers_legacy(),timeout=30).json()
+
+        self.content = response
+        return self
+
+    
+    def display_sensitive_media(self, display='true'):
+
+        data = {
+            'display_sensitive_media': display.lower()
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+
+    def pin_tweet(self, id):
+        data = {
+            'id': id
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/pin_tweet.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+
+        return response
+
+    def unpin_tweet(self, id):
+        data = {
+            'id': id
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/unpin_tweet.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def change_id(self, id):
+        data = {
+            'screen_name': id
+        }
+        
+        response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def private(self, protected):
+        if not protected.lower() in ["true", "false"]:
+            print("""Please enter "true" or "false".""")
+        elif protected.lower() in ["true", "false"]:
+            data = {
+                'protected': protected
+            }
+            
+            response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def gender(self, gender='female'):
+        if gender.lower() in ["female", "male"]:
+            data = '{"preferences":{"gender_preferences":{"use_gender_for_personalization":true,"gender_override":{"type":"' + gender.lower() + '","value":"' + gender.lower() + '"}}}}'
+
+            response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        else:
+            data = '{"preferences":{"gender_preferences":{"use_gender_for_personalization":true,"gender_override":{"type":"custom","value":"' + gender.lower() + '"}}}}'
+
+        self.content = response
+        return self
+
+
+    def allow_dm(self, allow_dms_from='all'):
+        #allow_dms_from = 'all' or 'following'
+
+        data = {
+            'include_mention_filter': 'true',
+            'include_nsfw_user_flag': 'true',
+            'include_nsfw_admin_flag': 'true',
+            'include_ranked_timeline': 'true',
+            'include_alt_text_compose': 'true',
+            'allow_dms_from': allow_dms_from,
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+
+    def update_profile(self, data):
+        """
+        Args:
+            data (dict): 
+            {
+                'birthdate_year': '2000',
+                'birthdate_month': '1',
+                'birthdate_day': '1',
+                'birthdate_visibility': 'self',
+                'birthdate_year_visibility': 'self',
+                'displayNameMaxLength': 50,
+                'url': 'https://twitter.com/aaa',
+                'name': 'bot',
+                'description': 'yoyo!',
+                'location': 'JP'
+            }
+        """
+        response = self.session.post('https://twitter.com/i/api/1.1/account/update_profile.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+    
+    def update_profile_image(self, img_path):
+        src_img = Image.open(img_path)
+        img_str = pil_to_base64(src_img)
+        data = {
+            'image': img_str
+        }
+        response = self.session.post('https://twitter.com/i/api/1.1/account/update_profile_image.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+
+
+
+
+def check_shadowban(screen_name):
+
+    cookies = {
+        '_ga_4E8SDFWKN5': 'GS1.1.1669633608.1.0.1669633608.0.0.0',
+        '_ga': 'GA1.2.1479150603.1669633609',
+        '_gid': 'GA1.2.1288539343.1669633609',
+        '_gat_gtag_UA_202220676_1': '1',
+        '__gads': 'ID=c589bfc8c8066f7b-22feefe0abd8009f:T=1669633608:RT=1669633608:S=ALNI_Map5heMU212-gSYSxM7lS4DO-oGmg',
+        '__gpi': 'UID=00000b856b7b2b20:T=1669633608:RT=1669633608:S=ALNI_MYBpmGUeJ2vZ-__Foiy2SGgZgt0iA',
+        'FCNEC': '%5B%5B%22AKsRol8IQ5YxG-cXUCxav6OZ2n6gpHSIq7m55sLr3T4g1p-KZj8cQO71VUDId1OG8L9b9wMXj8X0nQobgUnYkGr3hS-XOew3neAqc9iSm4nkZdYrbJ0cTLt2HvAbE-7yGWDQgBA3jTyoAcOAXS40HYLwUjFnyzKDIA%3D%3D%22%5D%2Cnull%2C%5B%5D%5D',
+    }
+
+    headers = {
+        'authority': 'taishin-miyamoto.com',
+        'accept': '*/*',
+        'accept-language': 'ja',
+        # Requests sorts cookies= alphabetically
+        # 'cookie': '_ga_4E8SDFWKN5=GS1.1.1669633608.1.0.1669633608.0.0.0; _ga=GA1.2.1479150603.1669633609; _gid=GA1.2.1288539343.1669633609; _gat_gtag_UA_202220676_1=1; __gads=ID=c589bfc8c8066f7b-22feefe0abd8009f:T=1669633608:RT=1669633608:S=ALNI_Map5heMU212-gSYSxM7lS4DO-oGmg; __gpi=UID=00000b856b7b2b20:T=1669633608:RT=1669633608:S=ALNI_MYBpmGUeJ2vZ-__Foiy2SGgZgt0iA; FCNEC=%5B%5B%22AKsRol8IQ5YxG-cXUCxav6OZ2n6gpHSIq7m55sLr3T4g1p-KZj8cQO71VUDId1OG8L9b9wMXj8X0nQobgUnYkGr3hS-XOew3neAqc9iSm4nkZdYrbJ0cTLt2HvAbE-7yGWDQgBA3jTyoAcOAXS40HYLwUjFnyzKDIA%3D%3D%22%5D%2Cnull%2C%5B%5D%5D',
+        'referer': 'https://taishin-miyamoto.com/ShadowBan/',
+        'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+    }
+
+    params = {
+        'screen_name': screen_name,
+    }
+
+    response = requests.get('https://taishin-miyamoto.com/ShadowBan/API/JSON', params=params, cookies=cookies, headers=headers, timeout=30).json()
+    print(response)
+    return response
