@@ -6,12 +6,12 @@ from importlib import reload
 import glob
 import random
 import os
+import time
 
 
 
-
-screen_name = 'aaa'
-password='bbb.b'
+screen_name = 'thorndike_ed'
+password='majika19940909'
 
 
 filepath = f'./db/{screen_name}.json'
@@ -131,7 +131,12 @@ elif action == "load":
     
 # flow.LoadCookies(filepath)
 
+
+
+
 import pdb;pdb.set_trace()
+
+# user_id = flow.user_info(screen_name="Flower_kyujin")
 user_id = flow.user_info(screen_name=screen_name).content["id_str"]
 
 
@@ -141,9 +146,82 @@ res = flow.verify_password(password)
 
 mydata = flow.account_data(password=password).content
 
+
+res = flow.change_country()
+flow.dm_filter()
+print(flow.display_sensitive_media())
+print(flow.gender())
+print(flow.allow_dm())
+
+
+
+
+import pdb;pdb.set_trace()
+res = flow.update_profile(data=prof)
+imgs = glob.glob('./img/*')
+img_path = random.choice(imgs)
+res_img = flow.update_profile_image(img_path).content
+
+
+import pdb;pdb.set_trace()
+
+
+
+#相互フォロー用
+
+import pysnooper
+
+
+@pysnooper.snoop()
+def mutual_follow():
+    res = flow.user_search("相互フォロー")
+    user_ids = [u for u in res.content['globalObjects']['users'].keys()]
+    for user_id in user_ids:
+        resp = flow.friendships_create(user_id)
+        time.sleep(1)
+
+
+
+mutual_follow()
+import pdb;pdb.set_trace()
+
+
+
+users = res.content['globalObjects']['users']
+users1 = [u for u in users.keys()]
+
+fres = flow.friendships_create(users1[0])
+
+res = flow.user_search("相互フォロー")
+userss = res.content['globalObjects']['users']
+users2 = [u for u in userss.keys()]
+
+res = flow.followers_ids("yuri_yymm")
+
+
+res = flow.change_country()
+# flow.change_country_flow(country_code="jp")
+# flow.change_country_subtask()
+# flow.change_country_end()
+# flow.dm_filter()
+
 # print(flow.display_sensitive_media())
 # print(flow.gender())
 # print(flow.allow_dm())
+
+
+res = flow.change_country()
+flow.dm_filter()
+print(flow.display_sensitive_media())
+print(flow.gender())
+print(flow.allow_dm())
+res = flow.update_profile(data=prof)
+imgs = glob.glob('./img/*')
+img_path = random.choice(imgs)
+res_img = flow.update_profile_image(img_path).content
+
+
+
 import pdb;pdb.set_trace()
 
 
@@ -151,6 +229,11 @@ import pdb;pdb.set_trace()
 
 
 res = flow.update_profile(data=prof)
+imgs = glob.glob('./img/*')
+img_path = random.choice(imgs)
+res_img = flow.update_profile_image(img_path).content
+
+
 
 import pdb;pdb.set_trace()
 
@@ -181,7 +264,7 @@ def create_conversation_id(user_id, you_id):
 def get_unsent_userid(flow, user_id, conversation_id):
     #送信履歴があるかチェックする
     #まずはDM履歴一覧を取得
-    res = flow.get_conversation(conversation_id = conversation_id)
+    res = flow.get_conversation(conversation_id=conversation_id)
     #会話履歴
     convs = res.content['conversation_timeline']['entries']
     #会話相手のuserid

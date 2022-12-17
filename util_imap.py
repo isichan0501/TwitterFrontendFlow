@@ -6,10 +6,9 @@ import datetime
 
 
 
-
 with Imbox('imap-mail.outlook.com',
-        username='aaaa@outlook.com',
-        password='bbbbb',
+        username='aaa@hotmail.com',
+        password='8jG8swVpLO',
         ssl=True,
         ssl_context=None,
         starttls=False) as imbox:

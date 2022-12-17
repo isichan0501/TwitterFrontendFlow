@@ -17,8 +17,12 @@ def pil_to_base64(img):
 
 
 class TwitterFrontendFlow:
-    def __init__(self, proxies={}, language="en"):
-        self.USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+    def __init__(self, ua="", proxies={}, language="en"):
+        if not ua:
+            # self.USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+            self.USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+        else:
+            self.USER_AGENT = ua
         self.AUTHORIZATION = "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
         self.proxies = proxies
         self.session = requests.session()
@@ -52,6 +56,19 @@ class TwitterFrontendFlow:
     def __get_headers(self):
         return {
             "authorization": self.AUTHORIZATION,
+            "User-Agent": self.USER_AGENT,
+            "Content-type": "application/json",
+            "x-guest-token": self.x_guest_token,
+            "x-csrf-token": self.session.cookies.get("ct0"),
+            "x-twitter-active-user": "yes",
+            "x-twitter-client-language": self.language,
+        }
+
+    #追加
+    def __get_change_country_headers(self):
+        return {
+            "authorization": self.AUTHORIZATION,
+            "referer": "https://twitter.com/i/flow/settings/change_country?return_path=%2Fsettings%2Fcountry",
             "User-Agent": self.USER_AGENT,
             "Content-type": "application/json",
             "x-guest-token": self.x_guest_token,
@@ -121,6 +138,110 @@ class TwitterFrontendFlow:
 
         with open(file_path, "w") as f:
             json.dump(cookies, f, indent=4)
+        return self
+
+
+    #追加
+
+    def change_country_flow(self, country_code="jp"):
+        
+
+        params = {
+            "flow_name": "settings/change_country",
+        }
+
+        json_data = {
+            "input_flow_data": {
+                "country_code": country_code,
+                "flow_context": {
+                    "debug_overrides": {},
+                    "start_location": {
+                        "location": "settings",
+                    },
+                },
+            },
+            "subtask_versions": {
+                "action_list": 2,
+                "alert_dialog": 1,
+                "app_download_cta": 1,
+                "check_logged_in_account": 1,
+                "choice_selection": 3,
+                "contacts_live_sync_permission_prompt": 0,
+                "cta": 7,
+                "email_verification": 2,
+                "end_flow": 1,
+                "enter_date": 1,
+                "enter_email": 2,
+                "enter_password": 5,
+                "enter_phone": 2,
+                "enter_recaptcha": 1,
+                "enter_text": 5,
+                "enter_username": 2,
+                "generic_urt": 3,
+                "in_app_notification": 1,
+                "interest_picker": 3,
+                "js_instrumentation": 1,
+                "menu_dialog": 1,
+                "notifications_permission_prompt": 2,
+                "open_account": 2,
+                "open_home_timeline": 1,
+                "open_link": 1,
+                "phone_verification": 4,
+                "privacy_options": 1,
+                "security_key": 3,
+                "select_avatar": 4,
+                "select_banner": 2,
+                "settings_list": 7,
+                "show_code": 1,
+                "sign_up": 2,
+                "sign_up_review": 4,
+                "tweet_selection_urt": 1,
+                "update_users": 1,
+                "upload_media": 1,
+                "user_recommendations_list": 4,
+                "user_recommendations_urt": 1,
+                "wait_spinner": 3,
+                "web_modal": 1,
+            },
+        }
+
+        response = self.session.post("https://twitter.com/i/api/1.1/onboarding/task.json", params=params, headers=self.__get_change_country_headers(), json=json_data).json()
+        self.flow_token = response.get("flow_token")
+        self.content = response
+        self.__error_check()
+        return self
+
+    def change_country_subtask(self):
+        
+        json_data = {
+            'flow_token': self.flow_token,
+            'subtask_inputs': [
+                {
+                    'subtask_id': 'CallToAction',
+                    'cta': {
+                        'link': 'consent_agree_link',
+                    },
+                },
+            ],
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/onboarding/task.json', headers=self.__get_change_country_headers(), json=json_data).json()
+        self.flow_token = response.get("flow_token")
+        self.content = response
+        self.__error_check()
+        return self
+
+    def change_country_end(self):
+        
+        json_data = {
+            'flow_token': self.flow_token,
+            'subtask_inputs': [],
+        }
+
+        response = requests.post('https://twitter.com/i/api/1.1/onboarding/task.json', headers=self.__get_change_country_headers(), json=json_data).json()
+        self.flow_token = response.get("flow_token")
+        self.content = response
+        self.__error_check()
         return self
 
     # ログイン
@@ -905,6 +1026,26 @@ class TwitterFrontendFlow:
         self.content = response
         return self
 
+    def change_country(self, country_code="jp"):
+    
+        data = {
+            "country_code": country_code
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+
+    def change_lang(self, lang="ja"):
+        
+        data = {
+            "language": lang
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+    
     def pin_tweet(self, id):
         data = {
             'id': id
@@ -975,6 +1116,22 @@ class TwitterFrontendFlow:
         self.content = response
         return self
 
+    def dm_filter(self):
+        #allow_dms_from = 'all' or 'following'
+
+        data = {
+            'include_mention_filter': 'true',
+            'include_nsfw_user_flag': 'true',
+            'include_nsfw_admin_flag': 'true',
+            'include_ranked_timeline': 'true',
+            'include_alt_text_compose': 'true',
+            'dm_quality_filter': 'disabled',
+        }
+
+        response = self.session.post('https://twitter.com/i/api/1.1/account/settings.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+    
     def update_profile(self, data):
         """
         Args:
@@ -997,12 +1154,228 @@ class TwitterFrontendFlow:
         return self
     
     def update_profile_image(self, img_path):
-        src_img = Image.open(img_path)
+        src_img = Image.open(img_path).convert('RGB')
         img_str = pil_to_base64(src_img)
         data = {
             'image': img_str
         }
         response = self.session.post('https://twitter.com/i/api/1.1/account/update_profile_image.json', headers=self.__get_headers_legacy(), data=data,timeout=30).json()
+        self.content = response
+        return self
+
+
+    def favorites_list(self, screen_name, count=None, since_id=None, max_id=None, include_entities=None, tweet_mode=None):
+        url = 'https://api.twitter.com/1.1/favorites/list.json?screen_name=' + screen_name
+        if count != None:
+            url = url + '&count=' + count
+        if since_id != None:
+            url = url + '&since_id=' + since_id
+        if max_id != None:
+            url = url + '&max_id=' + since_id
+        if include_entities != None:
+            url = url + '&include_entities=' + include_entities
+        if tweet_mode != None:
+            url = url + '&tweet_mode=' + tweet_mode
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def followers_ids(self, screen_name, cursor=None, stringify_ids=None, count=None):
+        url = 'https://api.twitter.com/1.1/followers/ids.json?screen_name=' + screen_name
+        if cursor != None:
+            url = url + '&cursor=' + cursor
+        if stringify_ids != None:
+            url = url + '&stringify_ids=' + stringify_ids
+        if count != None:
+            url = url + '&count=' + count
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def followers_list(self, screen_name, cursor=None, count=None, skip_status=None, include_user_entities=None, tweet_mode=None):
+        url = 'https://api.twitter.com/1.1/followers/list.json?screen_name=' + screen_name
+        if cursor != None:
+            url = url + '&cursor=' + cursor
+        if count != None:
+            url = url + '&count=' + count
+        if skip_status != None:
+            url = url + '&skip_status=' + skip_status
+        if include_user_entities != None:
+            url = url + '&include_user_entities=' + include_user_entities
+        if tweet_mode != None:
+            url = url + '&tweet_mode=' + tweet_mode
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def friends_ids(self, screen_name, cursor=None, stringify_ids=None, count=None):
+        url = 'https://api.twitter.com/1.1/friends/ids.json?screen_name=' + screen_name
+        if cursor != None:
+            url = url + '&cursor=' + cursor
+        if stringify_ids != None:
+            url = url + '&stringify_ids=' + stringify_ids
+        if count != None:
+            url = url + '&count=' + count
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def friends_list(self, screen_name, cursor=None, count=None, skip_status=None, include_user_entities=None, tweet_mode=None):
+        url = 'https://api.twitter.com/1.1/friends/list.json?screen_name=' + screen_name
+        if cursor != None:
+            url = url + '&cursor=' + cursor
+        if count != None:
+            url = url + '&count=' + count
+        if skip_status != None:
+            url = url + '&skip_status=' + skip_status
+        if include_user_entities != None:
+            url = url + '&include_user_entities=' + include_user_entities
+        if tweet_mode != None:
+            url = url + '&tweet_mode=' + tweet_mode
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def friendships_show(self, source_screen_name, target_screen_name):
+        url = 'https://api.twitter.com/1.1/friendships/show.json?source_screen_name=' + source_screen_name + '&target_screen_name=' + target_screen_name
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def friendships_show(self, source_screen_name, target_screen_name):
+        url = 'https://api.twitter.com/1.1/friendships/show.json?source_screen_name=' + source_screen_name + '&target_screen_name=' + target_screen_name
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+
+    def friendships_show_with_id(self, source_id, target_id):
+        url = 'https://api.twitter.com/1.1/friendships/show.json?source_id=' + source_id + '&target_id=' + target_id
+        response = self.session.get(url, headers=self.__get_headers_legacy(),timeout=30).json()
+        self.content = response
+        return self
+    
+    def searchbox(self, text):
+        params = (
+            ('q', text),
+            ('src', 'search_box'),
+        )
+        response = self.session.get('https://twitter.com/i/api/1.1/search/typeahead.json', headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def topic_search(self, text):
+        params = (
+            ('q', text),
+            ('tweet_search_mode', 'extended'),
+        )
+        response = self.session.get('https://twitter.com/i/api/2/search/adaptive.json', headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def latest_search(self, text, count=None):
+        params = (
+            ('q', text),
+            ('tweet_search_mode', 'live'),
+        )
+
+        url = 'https://twitter.com/i/api/2/search/adaptive.json'
+        if count != None:
+            url = url + '&count=' + count
+
+            
+        response = self.session.get(url, headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def image_search(self, text):
+        params = (
+            ('q', text),
+            ('tweet_mode', 'extended'),
+            ('result_filter', 'image'),
+        )
+        response = self.session.get('https://twitter.com/i/api/2/search/adaptive.json', headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+        self.content = response
+        return self
+
+    def video_search(self, text):
+        params = (
+            ('q', text),
+            ('tweet_mode', 'extended'),
+            ('result_filter', 'video'),
+        )
+        response = self.session.get('https://twitter.com/i/api/2/search/adaptive.json', headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+        self.content = response
+        return self
+
+    # def user_search(self, text, count=20):
+    #     params = (
+    #         ('q', text),
+    #         ('tweet_mode', 'extended'),
+    #         ('result_filter', 'user'),
+    #         ('count', str(count)),
+    #     )
+
+    #     url = 'https://twitter.com/i/api/2/search/adaptive.json'
+    #     # if count != None:
+    #     #     url = url + '&count=' + str(count)
+
+    #     response = self.session.get(url, headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+    #     self.content = response
+    #     return self
+
+
+    def user_search(self, text, count=20, cursor=''):
+
+
+        # params = {
+        #         "q": text,
+        #         "tweet_mode": "extended",
+        #         "result_filter": "user",
+        #     }
+        # if count:
+        #     params['count'] = str(count)
+        # if cursor:
+        #     params['cursor'] = cursor
+        
+
+
+        if cursor:
+            params = (
+                ('q', text),
+                ('tweet_mode', 'extended'),
+                ('result_filter', 'user'),
+                ('count', str(count)),
+                ('cursor', cursor),
+            )
+        else:
+            params = (
+                ('q', text),
+                ('tweet_mode', 'extended'),
+                ('result_filter', 'user'),
+                ('count', str(count)),
+            )
+
+        
+        url = 'https://twitter.com/i/api/2/search/adaptive.json'
+
+        response = self.session.get(url, headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
+        self.content = response
+        return self
+    
+
+    def screenname_available(self, id):
+        params = (
+            ('username', id),
+        )
+        response = self.session.get('https://twitter.com/i/api/i/users/username_available.json', headers=self.__get_headers_legacy(), params=params,timeout=30).json()
+
         self.content = response
         return self
 
@@ -1042,5 +1415,5 @@ def check_shadowban(screen_name):
     }
 
     response = requests.get('https://taishin-miyamoto.com/ShadowBan/API/JSON', params=params, cookies=cookies, headers=headers, timeout=30).json()
-    print(response)
+    # print(response)
     return response
