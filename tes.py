@@ -10,8 +10,8 @@ import time
 
 
 
-screen_name = 'thorndike_ed'
-password='majika19940909'
+screen_name = 'aaa'
+password='aaa'
 
 
 filepath = f'./db/{screen_name}.json'
